@@ -230,7 +230,7 @@ public class ProcessConnector extends AbstractStreamsConnector {
 				}
 			}
 		}
-		return "xterm"; //$NON-NLS-1$
+		return "xterm-256color"; //$NON-NLS-1$
 	}
 
 	@Override

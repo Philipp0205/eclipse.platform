@@ -74,7 +74,7 @@ public enum TerminalColorPresets {
 			set(CYAN, 0, 205, 205);
 			set(WHITE, 229, 229, 229);
 
-			set(BRIGHT_BLACK, 0, 0, 0);
+			set(BRIGHT_BLACK, 127, 127, 127);
 			set(BRIGHT_RED, 255, 0, 0);
 			set(BRIGHT_GREEN, 0, 255, 0);
 			set(BRIGHT_YELLOW, 255, 255, 0);

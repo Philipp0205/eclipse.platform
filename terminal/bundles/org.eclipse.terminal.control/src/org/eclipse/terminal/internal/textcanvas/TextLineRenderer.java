@@ -73,6 +73,7 @@ public class TextLineRenderer implements ILinelRenderer {
 				setupGC(gc, style);
 				String text = segment.getText();
 				drawText(gc, x, y, colFirst, segment.getColumn(), text);
+				drawDecorations(gc, style, x, y, colFirst, segment.getColumn(), text.length());
 				drawCursor(model, gc, line, x, y, colFirst);
 			}
 			if (fModel.hasHoverSelection(line)) {
@@ -153,16 +154,56 @@ public class TextLineRenderer implements ILinelRenderer {
 		}
 	}
 
+	private void drawDecorations(GC gc, TerminalStyle style, int x, int y, int colFirst, int col, int length) {
+		if (style == null || length <= 0 || !(style.isUnderline() || style.isStrikethrough())) {
+			return;
+		}
+		int x1 = x + (col - colFirst) * getCellWidth();
+		int x2 = x1 + length * getCellWidth() - 1;
+		if (style.isUnderline()) {
+			int yy = y + getCellHeight() - 1;
+			gc.drawLine(x1, yy, x2, yy);
+		}
+		if (style.isStrikethrough()) {
+			int yy = y + getCellHeight() / 2;
+			gc.drawLine(x1, yy, x2, yy);
+		}
+	}
+
 	private void drawText(GC gc, int x, int y, int colFirst, int col, String text) {
 		int offset = (col - colFirst) * getCellWidth();
+		int cw = getCellWidth();
+		int ch = getCellHeight();
+		// Draw runs of ordinary text and box drawing characters separately.
+		// Box drawing characters are painted with primitives spanning the complete
+		// cell, since glyphs from fonts (or fallback fonts) rarely fill the cell height
+		// and leave gaps between lines.
+		int i = 0;
+		int n = text.length();
+		while (i < n) {
+			boolean box = BoxDrawing.isSupported(text.charAt(i));
+			int j = i + 1;
+			while (j < n && BoxDrawing.isSupported(text.charAt(j)) == box) {
+				j++;
+			}
+			String run = text.substring(i, j);
+			int runX = x + offset + i * cw;
+			if (box) {
+				for (int k = 0; k < run.length(); k++) {
+					BoxDrawing.draw(gc, run.charAt(k), runX + k * cw, y, cw, ch);
+				}
+			} else {
+				drawPlainText(gc, runX, y, run);
+			}
+			i = j;
+		}
+	}
+
+	private void drawPlainText(GC gc, int x, int y, String text) {
 		if (fStyleMap.isFontProportional()) {
-			// draw the background
-			// TODO why does this not work???????
-			//			gc.fillRectangle(x,y,fStyleMap.getFontWidth()*text.length(),fStyleMap.getFontHeight());
 			for (int i = 0; i < text.length(); i++) {
 				char c = text.charAt(i);
-				int xx = x + offset + i * fStyleMap.getFontWidth();
-				// TODO why do I have to draw the background character by character??????
+				int xx = x + i * fStyleMap.getFontWidth();
 				gc.fillRectangle(xx, y, fStyleMap.getFontWidth(), fStyleMap.getFontHeight());
 				if (c != ' ' && c != '\000') {
 					gc.drawString(String.valueOf(c), fStyleMap.getCharOffset(c) + xx, y, false);
@@ -170,7 +211,7 @@ public class TextLineRenderer implements ILinelRenderer {
 			}
 		} else {
 			text = text.replace('\000', ' ');
-			gc.drawString(text, x + offset, y, false);
+			gc.drawString(text, x, y, false);
 		}
 	}
 

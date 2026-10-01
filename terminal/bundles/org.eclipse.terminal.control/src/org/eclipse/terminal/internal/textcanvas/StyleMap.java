@@ -20,10 +20,14 @@
 package org.eclipse.terminal.internal.textcanvas;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.eclipse.jface.resource.FontRegistry;
 import org.eclipse.jface.resource.JFaceResources;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Drawable;
 import org.eclipse.swt.graphics.Font;
@@ -51,6 +55,7 @@ public class StyleMap {
 	private boolean fProportional;
 	private final int[] fOffsets = new int[256];
 	private final Map<TerminalColor, Color> fColorMap = new EnumMap<>(TerminalColor.class);
+	private final Map<RGB, Color> fRGBColors = new HashMap<>();
 
 	public StyleMap(Supplier<Drawable> usageContextProvider) {
 		fDefaultStyle = TerminalStyle.getDefaultStyle();
@@ -79,56 +84,53 @@ public class StyleMap {
 
 	public Color getForegroundColor(TerminalStyle style) {
 		style = defaultIfNull(style);
-		RGB foregroundRGB;
-		if (style.isReverse()) {
-			foregroundRGB = style.getBackgroundRGB();
-		} else {
-			foregroundRGB = style.getForegroundRGB();
+		Color fg = resolveColor(style, true);
+		if (style.isDim()) {
+			return blend(fg, resolveColor(style, false));
 		}
-		if (foregroundRGB != null) {
-			return new Color(foregroundRGB);
-		}
-
-		TerminalColor color;
-		if (style.isReverse()) {
-			color = style.getBackgroundTerminalColor();
-		} else {
-			color = style.getForegroundTerminalColor();
-		}
-
-		if (color == null) {
-			color = TerminalColor.FOREGROUND;
-		}
-
-		color = color.convertColor(fInvertColors, style.isBold());
-		return getColor(color);
+		return fg;
 	}
 
 	public Color getBackgroundColor(TerminalStyle style) {
 		style = defaultIfNull(style);
-		RGB backgroundRGB;
-		if (style.isReverse()) {
-			backgroundRGB = style.getForegroundRGB();
-		} else {
-			backgroundRGB = style.getBackgroundRGB();
-		}
-		if (backgroundRGB != null) {
-			return new Color(backgroundRGB);
-		}
+		return resolveColor(style, false);
+	}
 
-		TerminalColor color;
-		if (style.isReverse()) {
-			color = style.getForegroundTerminalColor();
-		} else {
-			color = style.getBackgroundTerminalColor();
+	/**
+	 * Resolve the effective color of a style.
+	 *
+	 * @param foreground whether the effective foreground (true) or background (false) is wanted;
+	 *            reverse video is taken into account.
+	 */
+	private Color resolveColor(TerminalStyle style, boolean foreground) {
+		boolean useFg = foreground != style.isReverse();
+		RGB rgb = useFg ? style.getForegroundRGB() : style.getBackgroundRGB();
+		if (rgb != null) {
+			return getRGBColor(rgb);
 		}
-
+		TerminalColor color = useFg ? style.getForegroundTerminalColor() : style.getBackgroundTerminalColor();
 		if (color == null) {
-			color = TerminalColor.BACKGROUND;
+			color = useFg ? TerminalColor.FOREGROUND : TerminalColor.BACKGROUND;
 		}
+		return getColor(color.convertColor(fInvertColors, false));
+	}
 
-		color = color.convertColor(fInvertColors, style.isBold());
-		return getColor(color);
+	private Color getRGBColor(RGB rgb) {
+		Color color = fRGBColors.get(rgb);
+		if (color == null) {
+			if (fRGBColors.size() > 512) {
+				fRGBColors.clear();
+			}
+			color = new Color(rgb);
+			fRGBColors.put(rgb, color);
+		}
+		return color;
+	}
+
+	private Color blend(Color fg, Color bg) {
+		RGB f = fg.getRGB();
+		RGB b = bg.getRGB();
+		return getRGBColor(new RGB((f.red + b.red) / 2, (f.green + b.green) / 2, (f.blue + b.blue) / 2));
 	}
 
 	private TerminalStyle defaultIfNull(TerminalStyle style) {
@@ -148,13 +150,30 @@ public class StyleMap {
 
 	public Font getFont(TerminalStyle style) {
 		style = defaultIfNull(style);
-		if (style.isBold()) {
+		boolean bold = style.isBold();
+		boolean italic = style.isItalic();
+		if (bold && italic) {
+			return getBoldItalicFont();
+		} else if (bold) {
 			return JFaceResources.getFontRegistry().getBold(fFontName);
-		} else if (style.isUnderline()) {
+		} else if (italic) {
 			return JFaceResources.getFontRegistry().getItalic(fFontName);
-
 		}
 		return JFaceResources.getFontRegistry().get(fFontName);
+	}
+
+	private Font getBoldItalicFont() {
+		String key = fFontName + ".bolditalic"; //$NON-NLS-1$
+		FontRegistry registry = JFaceResources.getFontRegistry();
+		if (!registry.hasValueFor(key)) {
+			FontData[] data = registry.getFontData(fFontName);
+			FontData[] copy = new FontData[data.length];
+			for (int i = 0; i < data.length; i++) {
+				copy[i] = new FontData(data[i].getName(), data[i].getHeight(), SWT.BOLD | SWT.ITALIC);
+			}
+			registry.put(key, copy);
+		}
+		return registry.get(key);
 	}
 
 	public Font getFont() {

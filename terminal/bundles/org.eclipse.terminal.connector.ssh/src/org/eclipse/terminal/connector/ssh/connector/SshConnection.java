@@ -138,7 +138,7 @@ public class SshConnection extends Thread {
 				return;
 			}
 			ChannelShell channel = (ChannelShell) session.openChannel("shell"); //$NON-NLS-1$
-			channel.setPtyType("xterm"); //$NON-NLS-1$
+			channel.setPtyType("xterm-256color"); //$NON-NLS-1$
 			// TERM=xterm implies VT100 line wrapping mode
 			fControl.setVT100LineWrapping(true);
 			channel.connect();

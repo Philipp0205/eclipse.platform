@@ -11,6 +11,8 @@ package org.eclipse.terminal.internal.emulator;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -19,8 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.terminal.connector.Logger;
 import org.eclipse.terminal.model.ITerminalTextData;
+import org.eclipse.terminal.model.TerminalColor;
+import org.eclipse.terminal.model.TerminalStyle;
 import org.eclipse.terminal.model.TerminalTextDataFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -373,6 +378,64 @@ public class VT100EmulatorTest {
 		);
 		assertAll(() -> assertTextEquals("HELLO"),
 				() -> assertEquals(List.of("TITLE1", "TITLE2"), control.getAllTitles()));
+	}
+
+	@Test
+	public void testBrightColorDoesNotImplyBold() {
+		run("\033[91mX");
+		TerminalStyle style = data.getStyle(0, 0);
+		assertAll(() -> assertEquals(TerminalColor.BRIGHT_RED, style.getForegroundTerminalColor()),
+				() -> assertFalse(style.isBold()));
+	}
+
+	@Test
+	public void testBoldKeepsBasicColor() {
+		run("\033[1;31mX");
+		TerminalStyle style = data.getStyle(0, 0);
+		assertAll(() -> assertEquals(TerminalColor.RED, style.getForegroundTerminalColor()),
+				() -> assertTrue(style.isBold()));
+	}
+
+	@Test
+	public void testBrightBackground() {
+		run("\033[104mX");
+		TerminalStyle style = data.getStyle(0, 0);
+		assertAll(() -> assertEquals(TerminalColor.BRIGHT_BLUE, style.getBackgroundTerminalColor()),
+				() -> assertFalse(style.isBold()));
+	}
+
+	@Test
+	public void testIndexedColor8IsBrightBlack() {
+		run("\033[38;5;8mX");
+		assertEquals(TerminalColor.BRIGHT_BLACK, data.getStyle(0, 0).getForegroundTerminalColor());
+	}
+
+	@Test
+	public void testTrueColor() {
+		run("\033[38;2;10;20;30;48;2;1;2;3mX");
+		TerminalStyle style = data.getStyle(0, 0);
+		assertAll(() -> assertEquals(new RGB(10, 20, 30), style.getForegroundRGB()),
+				() -> assertEquals(new RGB(1, 2, 3), style.getBackgroundRGB()));
+	}
+
+	@Test
+	public void testDimItalicStrikethrough() {
+		run("\033[2;3;9mA\033[22mB\033[23mC\033[29mD");
+		assertAll(() -> assertTrue(data.getStyle(0, 0).isDim()), //
+				() -> assertTrue(data.getStyle(0, 0).isItalic()), //
+				() -> assertTrue(data.getStyle(0, 0).isStrikethrough()), //
+				() -> assertFalse(data.getStyle(0, 1).isDim()), //
+				() -> assertTrue(data.getStyle(0, 1).isItalic()), //
+				() -> assertFalse(data.getStyle(0, 2).isItalic()), //
+				() -> assertTrue(data.getStyle(0, 2).isStrikethrough()), //
+				() -> assertFalse(data.getStyle(0, 3).isStrikethrough()));
+	}
+
+	@Test
+	public void testResetClearsNewAttributes() {
+		run("\033[2;3;9m\033[0mX");
+		TerminalStyle style = data.getStyle(0, 0);
+		assertFalse(style != null && (style.isDim() || style.isItalic() || style.isStrikethrough()));
 	}
 
 }

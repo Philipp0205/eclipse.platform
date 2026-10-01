@@ -64,7 +64,10 @@ public class Env {
 		}
 		// Set the TERM environment variable if in terminal mode
 		if (terminal) {
-			environmentVariables.put("TERM", "xterm");//$NON-NLS-1$ //$NON-NLS-2$
+			environmentVariables.put("TERM", "xterm-256color");//$NON-NLS-1$ //$NON-NLS-2$
+			if (environmentVariables.getProperty("COLORTERM") == null) { //$NON-NLS-1$
+				environmentVariables.put("COLORTERM", "truecolor");//$NON-NLS-1$ //$NON-NLS-2$
+			}
 		}
 
 		// Convert into an array of strings

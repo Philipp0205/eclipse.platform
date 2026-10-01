@@ -51,6 +51,7 @@ import org.eclipse.terminal.connector.Logger;
 import org.eclipse.terminal.control.TerminalTitleRequestor;
 import org.eclipse.terminal.internal.control.impl.ITerminalControlForText;
 import org.eclipse.terminal.model.ITerminalTextData;
+import org.eclipse.terminal.model.TerminalColor;
 import org.eclipse.terminal.model.TerminalStyle;
 
 /**
@@ -914,6 +915,14 @@ public class VT100Emulator implements ControlListener {
 				style = style.setBold(true);
 				break;
 
+			case 2:
+				style = style.setDim(true);
+				break;
+
+			case 3:
+				style = style.setItalic(true);
+				break;
+
 			case 4:
 				style = style.setUnderline(true);
 				break;
@@ -930,8 +939,15 @@ public class VT100Emulator implements ControlListener {
 				break;
 
 			case 21:
-			case 22:
 				style = style.setBold(false);
+				break;
+
+			case 22:
+				style = style.setBold(false).setDim(false);
+				break;
+
+			case 23:
+				style = style.setItalic(false);
 				break;
 
 			case 24:
@@ -946,58 +962,74 @@ public class VT100Emulator implements ControlListener {
 				style = style.setReverse(false);
 				break;
 
+			case 9:
+				style = style.setStrikethrough(true);
+				break;
+
+			case 29:
+				style = style.setStrikethrough(false);
+				break;
+
 			case 90:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_BLACK);
+				break;
+
 			case 30:
 				style = style.setForeground(BLACK);
 				break;
 
 			case 91:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_RED);
+				break;
+
 			case 31:
 				style = style.setForeground(RED);
 				break;
 
 			case 92:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_GREEN);
+				break;
+
 			case 32:
 				style = style.setForeground(GREEN);
 				break;
 
 			case 93:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_YELLOW);
+				break;
+
 			case 33:
 				style = style.setForeground(YELLOW);
 				break;
 
 			case 94:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_BLUE);
+				break;
+
 			case 34:
 				style = style.setForeground(BLUE);
 				break;
 
 			case 95:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_MAGENTA);
+				break;
+
 			case 35:
 				style = style.setForeground(MAGENTA);
 				break;
 
 			case 96:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_CYAN);
+				break;
+
 			case 36:
 				style = style.setForeground(CYAN);
 				break;
 
 			case 97:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setForeground(TerminalColor.BRIGHT_WHITE);
+				break;
+
 			case 37:
 				style = style.setForeground(WHITE);
 				break;
@@ -1007,57 +1039,65 @@ public class VT100Emulator implements ControlListener {
 				break;
 
 			case 100:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_BLACK);
+				break;
+
 			case 40:
 				style = style.setBackground(BLACK);
 				break;
 
 			case 101:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_RED);
+				break;
+
 			case 41:
 				style = style.setBackground(RED);
 				break;
 
 			case 102:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_GREEN);
+				break;
+
 			case 42:
 				style = style.setBackground(GREEN);
 				break;
 
 			case 103:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_YELLOW);
+				break;
+
 			case 43:
 				style = style.setBackground(YELLOW);
 				break;
 
 			case 104:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_BLUE);
+				break;
+
 			case 44:
 				style = style.setBackground(BLUE);
 				break;
 
 			case 105:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_MAGENTA);
+				break;
+
 			case 45:
 				style = style.setBackground(MAGENTA);
 				break;
 
 			case 106:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_CYAN);
+				break;
+
 			case 46:
 				style = style.setBackground(CYAN);
 				break;
 
 			case 107:
-				style = style.setBold(true);
-				//$FALL-THROUGH$
+				style = style.setBackground(TerminalColor.BRIGHT_WHITE);
+				break;
+
 			case 47:
 				style = style.setBackground(WHITE);
 				break;
@@ -1149,7 +1189,8 @@ public class VT100Emulator implements ControlListener {
 				} else {
 					style = style.setBackground(rgb);
 				}
-				consumed = Math.min(6, params.length);
+				// 38;2;r;g;b consumes 5 parameters, the T.416 form with color space 6
+				consumed = Math.min(colorspace ? 6 : 5, params.length);
 				break;
 			case 5: // 8-bit color table lookup
 				int index = 0;
